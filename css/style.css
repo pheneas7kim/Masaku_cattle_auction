@@ -1,0 +1,159 @@
+/* General Reset */
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+/* Navbar */
+.navbar {
+  background: #333;
+  color: #fff;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar .logo {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.navbar .nav-links {
+  list-style: none;
+  display: flex;
+}
+
+.navbar .nav-links li {
+  margin-left: 20px;
+}
+
+.navbar .nav-links a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+.navbar .nav-links a:hover {
+  color: orange;
+}
+
+/* Banner */
+.banner {
+  height: 100vh;
+  background: url('../uploads/bull1.webp') no-repeat center center/cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  padding: 0 20px;
+  background-position: center;
+}
+
+.banner-content h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.banner-content p {
+  font-size: 20px;
+  margin-bottom: 30px;
+}
+
+
+
+/* Footer */
+footer {
+  background: #333;
+  color: #fff;
+  text-align: center;
+  padding: 20px;
+  margin-top: -10px;
+}
+
+footer a {
+  color: orange;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+h1{
+  color: blue;
+}
+
+/* Featured Auctions */
+.featured-auctions {
+  text-align: center;
+  padding: 40px;
+}
+
+.auction-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* two items per row */
+  gap: 20px; /* spacing between items */
+  justify-content: center;
+}
+
+.auction-item {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.auction-item:hover {
+  transform: scale(1.03);
+}
+
+.auction-item img {
+  width: 100%;
+  height: 200px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.auction-item h3 {
+  margin: 10px 0;
+  font-size: 18px;
+}
+
+.auction-item p {
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+.auction-item .btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 10px 15px;
+  background: orange;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 5px;
+}
+
+.auction-item .btn:hover {
+  background: darkorange;
+}
+
+/* Make it stack vertically on mobile */
+@media (max-width: 768px) {
+  .auction-list {
+    grid-template-columns: 1fr;
+  }
+}
