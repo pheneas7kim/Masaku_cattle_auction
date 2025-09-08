@@ -12,30 +12,34 @@ use PHPMailer\PHPMailer\Exception;
 $message = "";
 $messageClass = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $name     = trim($_POST['name']);
-    $email    = trim($_POST['email']);
-    $phone    = trim($_POST['phone']);
-    $passwordRaw = $_POST['password'];
-    $confirmPassword = $_POST['confirm_password'];
-    $role     = $_POST['role']; // get role from form
-
-    // Validate role
-    if (!in_array($role, ['buyer','seller'])) {
-        $message = "Invalid role selected.";
-        $messageClass = "error";
+// Fetch countries from DB
+$countries = [];
+$result = $conn->query("SELECT id, name FROM countries ORDER BY name ASC");
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $countries[] = $row;
     }
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $name            = trim($_POST['name']);
+    $email           = trim($_POST['email']);
+    $phone           = trim($_POST['phone']);
+    $countryId       = $_POST['country'];
+    $passwordRaw     = $_POST['password'];
+    $confirmPassword = $_POST['confirm_password'];
+
     // Validate Kenyan phone number
-    elseif (!preg_match("/^(07\d{8}|01\d{8}|2547\d{8})$/", $phone)) {
+    if (!preg_match("/^(07\d{8}|01\d{8}|2547\d{8})$/", $phone)) {
         $message = "Invalid Kenyan phone number format.";
         $messageClass = "error";
     }
     // Check password strength
-    elseif (!preg_match("/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/", $passwordRaw)) {
-        $message = "Password must be at least 8 chars, include upper & lowercase letters, a number, and a special character.";
+    elseif (!preg_match("/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$/", $passwordRaw)) {
+        $message = "Password must be at least 8 chars, include uppercase, lowercase, number, and special character.";
         $messageClass = "error";
     }
-    // Check password match
+    // Check match
     elseif ($passwordRaw !== $confirmPassword) {
         $message = "Passwords do not match.";
         $messageClass = "error";
@@ -55,11 +59,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Generate OTP
             $otp = rand(100000, 999999);
 
-            // Insert new user with OTP
-            $sql = "INSERT INTO users (name, email, phone, password, role, verification_code, is_verified) 
-                    VALUES (?, ?, ?, ?, ?, ?, 0)";
+            // Insert user
+            $sql = "INSERT INTO users (name, email, phone, password, country, verification_code, is_verified, status) 
+                    VALUES (?, ?, ?, ?, ?, ?, 0, 'pending')";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssssss", $name, $email, $phone, $password, $role, $otp);
+            $stmt->bind_param("sssssi", $name, $email, $phone, $password, $countryId, $otp);
 
             if ($stmt->execute()) {
                 // Send OTP email
@@ -78,13 +82,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     $mail->isHTML(true);
                     $mail->Subject = 'Verify your account';
-                    $mail->Body    = "Hello $name,<br><br>Welcome to our system!<br>
-                                      Your verification code is <b>$otp</b>.<br><br>
-                                      Please enter this code to activate your account.";
+                    $mail->Body    = "Hello $name,<br><br>Your verification code is <b>$otp</b>.";
 
                     $mail->send();
-
-                    // Redirect to OTP page
                     header("Location: verify.php?email=" . urlencode($email));
                     exit();
                 } catch (Exception $e) {
@@ -95,7 +95,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $message = "Registration failed. Please try again.";
                 $messageClass = "error";
             }
+            $stmt->close();
         }
+        $check->close();
     }
 }
 ?>
@@ -106,68 +108,106 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   <title>Register</title>
   <link rel="stylesheet" href="css/form.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+
+
+
+
+    .password-wrapper {
+      position: relative;
+    }
+    .password-wrapper input {
+      width: 100%;
+      padding-right: 40px;
+    }
+    .toggle-eye {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+    }
+  </style>
 </head>
 <body>
-  <?php include 'navbar.php'; ?>
- 
-  <div class="form-container">
+<?php include 'navbar.php'; ?>
+
+<div class="form-container">
     <h2>Register</h2>
 
     <?php if (!empty($message)) { ?>
-      <p class="<?php echo $messageClass; ?>"><?php echo $message; ?></p>
+        <p class="<?php echo $messageClass; ?>"><?php echo $message; ?></p>
     <?php } ?>
 
     <form method="POST" action="" onsubmit="return validatePasswords()">
-          <label for="role">Role:</label>
-          <select name="role" required>
-            <option value="seller">Seller</option>
-            <option value="buyer">Buyer</option>
-          </select>
+        <label for="name">Full Name:</label>
+        <input type="text" name="name" required>
 
-          <label for="name">Full Name:</label>
-          <input type="text" name="name" required>
+        <label for="email">Email:</label>
+        <input type="email" name="email" required>
 
-          <label for="email">Email:</label>
-          <input type="email" name="email" required>
+        <label for="country">Select Country:</label>
+        <select name="country" id="country" required>
+            <option value="">-- Select Country --</option>
+            <?php foreach ($countries as $c): ?>
+                <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?></option>
+            <?php endforeach; ?>
+        </select>
 
-          <label for="phone">Phone:</label>
-          <input type="text" name="phone" 
-                 pattern="^(07\d{8}|01\d{8}|2547\d{8})$" 
-                 title="Enter a valid Kenyan phone number" 
-                 required>
+        <label for="phone">Phone:</label>
+        <input type="text" name="phone" 
+               pattern="^(07\d{8}|01\d{8}|2547\d{8})$" 
+               title="Enter a valid Kenyan phone number" 
+               required>
 
-          <label for="password">Password:</label>
-          <input type="password" name="password" id="reg_password" required>
+        <label for="password">Password:</label>
+        <div class="password-wrapper">
+            <input type="password" name="password" id="reg_password" required>
+            <span class="toggle-eye" onclick="togglePassword('reg_password', this)">👁️</span>
+        </div>
 
-          <label for="confirm_password">Confirm Password:</label>
-          <input type="password" name="confirm_password" id="reg_confirm_password" required>
+        <label for="confirm_password">Confirm Password:</label>
+        <div class="password-wrapper">
+            <input type="password" name="confirm_password" id="reg_confirm_password" required>
+            <span class="toggle-eye" onclick="togglePassword('reg_confirm_password', this)">👁️</span>
+        </div>
 
-          <button type="submit" class="btn">Register</button>
-        </form>
-      </div>
-    </div>
+        <button type="submit" class="btn">Register</button>
+    </form>
+</div>
 
-    <!-- Right Side: Image -->
-    <div class="image-section">
-      <img src="../uploads/bull1.webp" alt="Auction Image">
-    </div>
-  </div>
+<div class="image-section">
+    <img src="../uploads/bull1.webp" alt="Auction Image">
+</div>
 
 <script>
-function validatePasswords() {
-  const pass = document.getElementById("reg_password").value.trim();
-  const confirm = document.getElementById("reg_confirm_password").value.trim();
+function togglePassword(fieldId, eyeIcon) {
+    const field = document.getElementById(fieldId);
+    if (field.type === "password") {
+        field.type = "text";
+        eyeIcon.textContent = "🙈";
+    } else {
+        field.type = "password";
+        eyeIcon.textContent = "👁️";
+    }
+}
 
-  const strongPass = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  if (!strongPass.test(pass)) {
-    alert("Password must be at least 8 chars, include uppercase, lowercase, number, and special char.");
-    return false;
-  }
-  if (pass !== confirm) {
-    alert("Passwords do not match!");
-    return false;
-  }
-  return true;
+function validatePasswords() {
+    const pass = document.getElementById("reg_password").value.trim();
+    const confirm = document.getElementById("reg_confirm_password").value.trim();
+
+    const strongPass = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).{8,}$/;
+    if (!strongPass.test(pass)) {
+        alert("Password must be at least 8 chars, include uppercase, lowercase, number, and special char.");
+        return false;
+    }
+    if (pass !== confirm) {
+        alert("Passwords do not match!");
+        return false;
+    }
+    return true;
 }
 </script>
 </body>
+</html>

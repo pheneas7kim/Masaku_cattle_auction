@@ -1,103 +1,189 @@
 <?php
 session_start();
+date_default_timezone_set('Africa/Nairobi'); // Ensure correct timezone
+
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: login.php");
+    exit();
+}
+
 include 'config.php';
 
-// Ensure only admin can access
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
-    die("Access denied. Admins only. <a href='login.php'>Login</a>");
+// ================= HANDLE USER ACTIONS =================
+
+// Delete a user and their cattle
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+
+    // Delete cattle first
+    $stmt = $conn->prepare("DELETE FROM cattle WHERE seller_id=?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    // Delete user (only non-admins)
+    $stmt = $conn->prepare("DELETE FROM users WHERE id=? AND role!='admin'");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
 }
 
-$message = "";
-
-// Approve/Reject cattle
-if (isset($_GET['action']) && isset($_GET['id'])) {
-    $cattle_id = intval($_GET['id']);
-    $action = $_GET['action'];
-
-    if ($action == 'approve') {
-        $stmt = $conn->prepare("UPDATE cattle SET status='approved' WHERE id=?");
-        $stmt->bind_param("i", $cattle_id);
-        $stmt->execute();
-        $message = "✅ Cattle approved successfully.";
-    } elseif ($action == 'reject') {
-        $stmt = $conn->prepare("UPDATE cattle SET status='rejected' WHERE id=?");
-        $stmt->bind_param("i", $cattle_id);
-        $stmt->execute();
-        $message = "❌ Cattle rejected.";
-    }
+// Deactivate user
+if (isset($_GET['deactivate'])) {
+    $id = intval($_GET['deactivate']);
+    $stmt = $conn->prepare("UPDATE users SET status='deactivated' WHERE id=? AND role!='admin'");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
 }
 
-// Fetch all cattle
-$result = $conn->query("SELECT cattle.*, users.name AS seller_name 
-                        FROM cattle 
-                        JOIN users ON cattle.seller_id = users.id 
-                        ORDER BY cattle.created_at DESC");
+// Activate user
+if (isset($_GET['activate'])) {
+    $id = intval($_GET['activate']);
+    $stmt = $conn->prepare("UPDATE users SET status='approved' WHERE id=? AND role!='admin'");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+}
+
+// ================= HANDLE CATTLE ACTIONS =================
+
+// Delete a single cattle listing
+if (isset($_GET['delete_cattle'])) {
+    $cattle_id = intval($_GET['delete_cattle']);
+    $stmt = $conn->prepare("DELETE FROM cattle WHERE id=?");
+    $stmt->bind_param("i", $cattle_id);
+    $stmt->execute();
+}
+
+// ================= FETCH DATA =================
+
+// Fetch all users (except admin)
+$usersResult = $conn->query("SELECT id, name, email, role, status FROM users WHERE role!='admin'");
+
+// Fetch all cattle with seller details (✅ now includes close_time)
+$cattleResult = $conn->query("
+    SELECT c.id, c.name AS cattle_name, c.breed, c.age, c.weight, c.price, c.close_time, 
+           u.name AS seller_name 
+    FROM cattle c
+    JOIN users u ON c.seller_id = u.id
+    ORDER BY c.start_time DESC
+");
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-   <link rel="stylesheet" href="css/style.css">
-    <title>Admin Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Masaku Cattle Auction</title>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        h2 { color: darkred; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        table, th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background: #f4f4f4; }
-        img { width: 80px; height: 80px; object-fit: cover; }
-        .success { color: green; }
-        .error { color: red; }
-        .btn { padding: 5px 10px; text-decoration: none; border-radius: 5px; }
-        .approve { background: green; color: white; }
-        .reject { background: red; color: white; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            margin: 20px;
+        }
+        h2 { color: darkgreen; margin-top: 40px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        table th {
+            background: #007BFF;
+            color: #fff;
+        }
+        .btn {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #007BFF;
+            color: #fff;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .btn:hover { background: #0056b3; }
+        .danger { background: #dc3545; }
+        .danger:hover { background: #a71d2a; }
+        .success { background: #28a745; }
+        .success:hover { background: #1e7e34; }
+        .warning { background: #ffc107; color: #000; }
+        .warning:hover { background: #e0a800; }
     </style>
 </head>
 <body>
-    <?php include 'navbar.php'; ?>
-    <h2>Admin Dashboard</h2>
-    <p>Welcome, <b><?php echo $_SESSION['name']; ?></b> | <a href="logout.php">Logout</a></p>
 
-    <?php if ($message) echo "<p class='success'>$message</p>"; ?>
+    <h1>Admin Dashboard - Masaku Cattle Auction</h1>
 
-    <h3>All Cattle Uploads</h3>
+    <!-- MANAGE USERS -->
+    <h2>Manage Users</h2>
     <table>
         <tr>
-            <th>Image</th>
-            <th>Name</th>
-            <th>Breed</th>
-            <th>Age</th>
-            <th>Weight</th>
-            <th>Seller</th>
-            <th>Status</th>
-            <th>Uploaded</th>
-            <th>Action</th>
+            <th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Action</th>
         </tr>
-        <?php while ($row = $result->fetch_assoc()): ?>
+        <?php while ($row = $usersResult->fetch_assoc()): ?>
             <tr>
-                <td><img src="uploads/<?php echo $row['image']; ?>" alt="Cattle"></td>
-                <td><?php echo $row['name']; ?></td>
-                <td><?php echo $row['breed']; ?></td>
-                <td><?php echo $row['age']; ?> yrs</td>
-                <td><?php echo $row['weight']; ?> kg</td>
-                <td><?php echo $row['seller_name']; ?></td>
-                <td><?php echo ucfirst($row['status']); ?></td>
-                <td><?php echo $row['created_at']; ?></td>
+                <td><?= $row['id'] ?></td>
+                <td><?= htmlspecialchars($row['name']) ?></td>
+                <td><?= htmlspecialchars($row['email']) ?></td>
+                <td><?= htmlspecialchars($row['role']) ?></td>
+                <td><?= htmlspecialchars($row['status']) ?></td>
                 <td>
-                    <?php if ($row['status'] == 'pending'): ?>
-                        <a class="btn approve" href="?action=approve&id=<?php echo $row['id']; ?>">Approve</a>
-                        <a class="btn reject" href="?action=reject&id=<?php echo $row['id']; ?>">Reject</a>
+                    <?php if ($row['status'] === 'approved'): ?>
+                        <a href="?deactivate=<?= $row['id'] ?>" class="btn warning">Deactivate</a>
                     <?php else: ?>
-                        <i><?php echo ucfirst($row['status']); ?></i>
+                        <a href="?activate=<?= $row['id'] ?>" class="btn success">Activate</a>
                     <?php endif; ?>
-                    <a href="delete_cattle.php?id=<?php echo $row['id']; ?>" 
-                   onclick="return confirm('Are you sure you want to delete this cattle?');">
-                   Delete
-                </a>
+                    <a href="?delete=<?= $row['id'] ?>" class="btn danger" 
+                       onclick="return confirm('Delete this user and all their cattle?')">Delete</a>
                 </td>
-                
             </tr>
         <?php endwhile; ?>
     </table>
+
+    <!-- MANAGE CATTLE -->
+    <h2>Manage Cattle Listings</h2>
+    <table>
+        <tr>
+            <th>ID</th><th>Cattle Name</th><th>Breed</th><th>Age</th>
+            <th>Weight</th><th>Price</th><th>Seller</th><th>Status</th><th>Action</th>
+        </tr>
+        <?php while ($c = $cattleResult->fetch_assoc()): ?>
+            <?php 
+                $expired = false;
+                if (!empty($c['close_time'])) {
+                    $expired = (strtotime($c['close_time']) <= time());
+                }
+            ?>
+            <tr>
+                <td><?= $c['id'] ?></td>
+                <td><?= htmlspecialchars($c['cattle_name']) ?></td>
+                <td><?= htmlspecialchars($c['breed']) ?></td>
+                <td><?= $c['age'] ?> yrs</td>
+                <td><?= $c['weight'] ?> kg</td>
+                <td>Ksh <?= number_format($c['price'], 2) ?></td>
+                <td><?= htmlspecialchars($c['seller_name']) ?></td>
+                <td style="font-weight:bold; color:<?= $expired ? 'red' : 'green' ?>;">
+                    <?= empty($c['close_time']) 
+                        ? "No close time set" 
+                        : ($expired ? "Closed" : "Active (closes " . date("d M Y H:i", strtotime($c['close_time'])) . ")") ?>
+                </td>
+                <td>
+                    <a href="?delete_cattle=<?= $c['id'] ?>" class="btn danger"
+                       onclick="return confirm('Delete this cattle listing?')">Delete</a>
+                </td>
+            </tr>
+        <?php endwhile; ?>
+    </table>
+
+    <br>
+    <a href="logout.php" class="btn">Logout</a>
+    <a href="auctions.php" class="btn">View Auctions</a>
+    <a href="upload_cattle.php" class="btn">Upload Cattle</a>
+    <a href="my_account.php" class="btn">My account</a>
+
 </body>
 </html>

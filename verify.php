@@ -1,95 +1,64 @@
 <?php
-// Show all errors
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-include 'config.php';
 session_start();
+include 'config.php';
 
 $message = "";
-$messageClass = "";
 
-// Get email from query string
-if (!isset($_GET['email'])) {
-    header("Location: login.php");
-    exit();
+// If user comes from register.php, store email in session
+if (isset($_GET['email'])) {
+    $_SESSION['pending_email'] = $_GET['email'];
 }
 
-$email = trim($_GET['email']);
-
-// Handle OTP submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $enteredOtp = trim($_POST['otp']);
+    $otp   = trim($_POST['otp']);
+    $email = $_SESSION['pending_email'] ?? '';
 
-    // Fetch user by email
-    $sql = "SELECT id, name, role, verification_code, is_verified FROM users WHERE email = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if ($email && $otp) {
+        // Check OTP
+        $sql = "SELECT id, verification_code, is_verified FROM users 
+                WHERE email = ? AND is_verified = 0";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    if ($result->num_rows === 1) {
-        $user = $result->fetch_assoc();
+        if ($result->num_rows === 1) {
+            $user = $result->fetch_assoc();
 
-        if ((int)$user['is_verified'] === 1) {
-            $message = "Your account is already verified. Please <a href='login.php'>login</a>.";
-            $messageClass = "success";
-        } elseif ($enteredOtp == $user['verification_code']) {
-            // OTP matches → verify account
-            $update = $conn->prepare("UPDATE users SET is_verified = 1 WHERE id = ?");
-            $update->bind_param("i", $user['id']);
-            $update->execute();
+            if ($otp == $user['verification_code']) {
+                //  Mark as verified
+                $update = $conn->prepare("UPDATE users SET is_verified = 1 WHERE id = ?");
+                $update->bind_param("i", $user['id']);
+                $update->execute();
 
-            // Auto-login after verification
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['email']   = $email;
-            $_SESSION['role']    = $user['role'];
-            $_SESSION['name']    = $user['name'];
+                // Clear pending email
+                unset($_SESSION['pending_email']);
 
-            // Redirect to role-based dashboard
-            if ($user['role'] === 'admin') {
-                header("Location: admin_dashboard.php");
-            } elseif ($user['role'] === 'seller') {
-                header("Location: seller_dashboard.php");
-            } elseif ($user['role'] === 'buyer') {
-                header("Location: buyer_dashboard.php");
+                header("Location: login.php?verified=1");
+                exit();
             } else {
-                header("Location: dashboard.php");
+                $message = "Invalid OTP.";
             }
-            exit();
         } else {
-            $message = "Invalid OTP. Please try again.";
-            $messageClass = "error";
+            $message = " Invalid OTP or already verified.";
         }
     } else {
-        $message = "No account found with this email.";
-        $messageClass = "error";
+        $message = " Missing OTP or email session.";
     }
 }
 ?>
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Verify Account</title>
-    <link rel="stylesheet" href="css/form.css">
-    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-      <?php include 'navbar.php'; ?>
-<div class="form-container">
     <h2>Verify Your Account</h2>
-
-    <?php if (!empty($message)) { ?>
-        <p class="<?php echo $messageClass; ?>"><?php echo $message; ?></p>
-    <?php } ?>
-
-    <form method="POST" action="">
-        <label for="otp">Enter OTP:</label>
-        <input type="text" name="otp" required pattern="\d{6}" title="Enter the 6-digit OTP">
-        <button type="submit" class="btn">Verify</button>
+    <?php if (!empty($message)) echo "<p style='color:red;'>$message</p>"; ?>
+    <form method="POST">
+        <label>Enter OTP sent to your email:</label>
+        <input type="text" name="otp" required>
+        <button type="submit">Verify</button>
     </form>
-</div>
 </body>
 </html>

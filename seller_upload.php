@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $breed = $_POST['breed'];
     $age = intval($_POST['age']);
     $weight = floatval($_POST['weight']);
+    $close_time = $_POST['close_time']; // Auction end time
     $imageName = "";
 
     if (!empty($_FILES['image']['name'])) {
@@ -28,12 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    $stmt = $conn->prepare("INSERT INTO cattle (seller_id, name, breed, age, weight, image, status) 
-                            VALUES (?, ?, ?, ?, ?, ?, 'pending')");
-    $stmt->bind_param("issids", $seller_id, $name, $breed, $age, $weight, $imageName);
+    // Insert into database including close_time
+    $stmt = $conn->prepare("INSERT INTO cattle (seller_id, name, breed, age, weight, image, close_time, status) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+    $stmt->bind_param("issidss", $seller_id, $name, $breed, $age, $weight, $imageName, $close_time);
 
     if ($stmt->execute()) {
-        $message = "✅ Cattle uploaded successfully. Waiting for admin approval.";
+        $message = "Cattle uploaded successfully. Waiting for admin approval.";
     } else {
         $message = "Error: " . $stmt->error;
     }
@@ -48,14 +50,40 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $seller_id ORDER 
 <head>
     <title>Seller Dashboard</title>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        h2 { color: darkgreen; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        table, th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        th { background: #f4f4f4; }
-        img { width: 80px; height: 80px; object-fit: cover; }
-        .success { color: green; }
-        .error { color: red; }
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+        h2 {
+            color: darkgreen;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background: #f4f4f4;
+        }
+        img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        input[type="datetime-local"] {
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
@@ -82,6 +110,9 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $seller_id ORDER 
         <label>Image:</label><br>
         <input type="file" name="image" required><br><br>
 
+        <label>Auction End Time:</label><br>
+        <input type="datetime-local" name="close_time" required><br><br>
+
         <button type="submit">Upload</button>
     </form>
 
@@ -96,6 +127,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $seller_id ORDER 
             <th>Weight</th>
             <th>Status</th>
             <th>Uploaded</th>
+            <th>Auction Ends</th>
         </tr>
         <?php while ($row = $result->fetch_assoc()): ?>
             <tr>
@@ -106,6 +138,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $seller_id ORDER 
                 <td><?php echo $row['weight']; ?> kg</td>
                 <td><?php echo ucfirst($row['status']); ?></td>
                 <td><?php echo $row['created_at']; ?></td>
+                <td><?php echo $row['close_time']; ?></td>
             </tr>
         <?php endwhile; ?>
     </table>
