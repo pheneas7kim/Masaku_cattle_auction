@@ -1,13 +1,14 @@
 <?php
 session_start();
 
-//  Restrict access if not logged in
+// Restrict access if not logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'user') {
     header("Location: login.php");
     exit();
 }
 
-$userName = $_SESSION['name'];
+// Make sure the session has the user's name
+$userName = $_SESSION['user_name'] ?? 'Guest';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -15,101 +16,134 @@ $userName = $_SESSION['name'];
     <meta charset="UTF-8">
     <title>User Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         body {
-            margin: 0;
             font-family: Arial, sans-serif;
-            background: url("../uploads/bull1.webp") no-repeat center center fixed;
-            background-size: cover;
+            margin: 0;
+            padding: 0;
+            background: #f4f4f4;
+        }
+        header {
+            background: #333;
+            color: #fff;
+            padding: 15px 0;
+            text-align: center;
+        }
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+        }
+        nav ul li {
+            display: inline;
+            margin: 0 15px;
+        }
+        nav ul li a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        nav ul li a i {
+            margin-right: 6px;
         }
         .dashboard-container {
-            width: 90%;
-            max-width: 1000px;
-            margin: 50px auto;
-            padding: 20px;
-            background: rgba(255,255,255,0.95);
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .actions {
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 30px auto;
+            max-width: 1200px;
         }
-        .card {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px;
+        .dashboard-card {
+            background: #fff;
+            border-radius: 12px;
+            margin: 15px;
+            padding: 25px;
+            width: 280px;
             text-align: center;
-            width: 250px;
-            background: #f9f9f9;
-            float: left;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
         }
-        .card img {
-            max-width: 100%;
-            height: 180px;
-            border-radius: 8px;
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        .dashboard-card i {
+            font-size: 60px;
+            margin: 20px 0;
+        }
+        .dashboard-card h3 {
+            margin: 15px 0;
+            font-size: 22px;
+            color: #333;
+        }
+        .dashboard-card p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
         }
         .btn {
             display: inline-block;
-            padding: 8px 15px;
-            background: rgba(43, 255, 0, 1);
+            padding: 10px 20px;
             color: #fff;
-            border-radius: 6px;
+            background: #007bff;
             text-decoration: none;
-            transition: 0.3s;
+            border-radius: 6px;
+            transition: background 0.3s;
         }
         .btn:hover {
-            background: #b38300ff;
+            background: #0056b3;
         }
-        .clearfix::after {
-            content: "";
-            clear: both;
-            display: table;
+        footer {
+            background: #333;
+            color: #fff;
+            text-align: center;
+            padding: 12px 0;
+            margin-top: 30px;
         }
     </style>
-      <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
- <?php include 'navbar.php'; ?>
-<div class="dashboard-container">
-    <h1>Welcome <?php echo htmlspecialchars($userName); ?> </h1>
+    <header>
+        <h1>Welcome <?php echo htmlspecialchars($userName); ?></h1>
+        <nav>
+            <ul>
+                <li><a href="index.php"><i class="fas fa-home"></i>Home</a></li>
+                <li><a href="dashboard.php"><i class="fas fa-tachometer-alt"></i>Dashboard</a></li>
+                <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i>Logout</a></li>
+            </ul>
+        </nav>
+    </header>
 
-    <div class="actions">
-        <a href="my_account.php" class="btn">My account</a>
-        <a href="upload_cattle.php" class="btn">Upload Cattle</a>
-        <a href="auctions.php" class="btn">Buy cattle</a>
-        <a href="logout.php" class="btn">Logout</a>
+    <div class="dashboard-container">
+
+        <div class="dashboard-card">
+            <i class="fas fa-user" style="color:#28a745;"></i>
+            <h3>My Account</h3>
+            <p>Check and manage your personal account.</p>
+            <a href="my_account.php" class="btn">Go to Account</a>
+        </div>
+
+        <div class="dashboard-card">
+            <i class="fas fa-cloud-upload-alt" style="color:#007bff;"></i>
+            <h3>Upload Cattle</h3>
+            <p>Upload your livestock for auction.</p>
+            <a href="upload_cattle.php" class="btn">Sell Livestock</a>
+        </div>
+
+        <div class="dashboard-card">
+            <i class="fas fa-sign-out-alt" style="color:#dc3545;"></i>
+            <h3>Logout</h3>
+            <p>End your session securely.</p>
+            <a href="logout.php" class="btn">Logout</a>
+        </div>
+
     </div>
 
-    <h2>our  services</h2>
-    <div class="clearfix">
-        <?php
-        include 'config.php';
-
-        $sql = "SELECT id, breed, age, price, image FROM cattle WHERE status='available'";
-        $result = $conn->query($sql);
-
-        if ($result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                echo "<div class='card'>
-                        <img src='uploads/" . htmlspecialchars($row['image']) . "' alt='Cattle'>
-                        <h3>" . htmlspecialchars($row['breed']) . "</h3>
-                        <p>Age: " . htmlspecialchars($row['age']) . " years</p>
-                        <p>Price: Ksh " . htmlspecialchars($row['price']) . "</p>
-                        <a href='buy_cattle.php?id=" . $row['id'] . "' class='btn'>Buy</a>
-                      </div>";
-            }
-        } else {
-            echo "<p>No cattle available at the moment.</p>";
-        }
-        ?>
-    </div>
-</div>
+    <footer>
+        <p>&copy; <?php echo date("Y"); ?> Livestock Auction System. All rights reserved.</p>
+    </footer>
 </body>
 </html>

@@ -54,64 +54,126 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <title>Login</title>
-    <link rel="stylesheet" href="css/form.css">
     <link rel="stylesheet" href="css/style.css">
     <style>
-        body {
+        /* General Reset */
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             background: url("../uploads/bull1.webp") no-repeat center center fixed;
             background-size: cover;
         }
+
+        /* Form Container */
         .form-container {
-            width: 350px;
-            margin: 100px auto;
-            padding: 20px;
-            background: rgba(255,255,255,0.9);
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .form-container h2 {
+            width: 400px;
+            max-width: 90%;
+            padding: 30px 25px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
             text-align: center;
-            margin-bottom: 20px;
         }
-        .form-container input,
+
+        .form-container h2 {
+            font-size: 28px;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        .form-container input[type="email"],
+        .form-container input[type="password"],
         .form-container button {
             width: 100%;
+            padding: 15px;
             margin-bottom: 15px;
-            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 16px;
         }
+
+        .form-container input[type="email"]:focus,
+        .form-container input[type="password"]:focus {
+            border-color: #28a745;
+            outline: none;
+        }
+
+        .form-container button {
+            background: #28a745;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .form-container button:hover {
+            background: #218838;
+        }
+
         .form-container a {
-            text-decoration: none;
             color: #007BFF;
+            text-decoration: none;
             font-size: 14px;
         }
+
+        .form-container a:hover {
+            text-decoration: underline;
+        }
+
         .message {
             color: red;
             font-weight: bold;
-            text-align: center;
             margin-bottom: 15px;
         }
+
         #show_password {
-            width: auto;
             margin-left: 5px;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .form-container {
+                padding: 25px 15px;
+            }
+
+            .form-container h2 {
+                font-size: 24px;
+            }
+
+            .form-container input[type="email"],
+            .form-container input[type="password"],
+            .form-container button {
+                padding: 12px;
+                font-size: 14px;
+            }
+
+            .form-container a {
+                font-size: 13px;
+            }
         }
     </style>
 </head>
 <body>
 <?php include 'navbar.php'; ?>
+
 <div class="form-container">
     <h2>Login</h2>
     <?php if (!empty($message)) { echo "<p class='message'>$message</p>"; } ?>
     <form method="POST" action="">
-        <label>Email:</label>
-        <input type="email" name="email" required>
-
-        <label>Password:</label>
-        <input type="password" name="password" id="login_password" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" id="login_password" placeholder="Password" required>
         <label><input type="checkbox" id="show_password" onclick="togglePassword()"> Show Password</label>
-
-        <button type="submit" class="btn">Login</button>
+        <button type="submit">Login</button>
     </form>
     <p><a href="forgot_password.php">Forgot Password?</a></p>
 </div>
@@ -124,3 +186,4 @@ function togglePassword() {
 </script>
 </body>
 </html>
+

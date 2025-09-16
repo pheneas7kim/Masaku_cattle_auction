@@ -84,7 +84,7 @@ $result = $conn->query("SELECT id, name, email, role, is_verified, status FROM u
             <td><?= $row['name']; ?></td>
             <td><?= $row['email']; ?></td>
             <td><?= ucfirst($row['role']); ?></td>
-            <td><?= $row['is_verified'] ? "✅ Yes" : "❌ No"; ?></td>
+            <td><?= $row['is_verified'] ? "Yes" : " No"; ?></td>
             <td><?= ucfirst($row['status']); ?></td>
             <td>
                 <?php if ($row['status'] === "pending") { ?>

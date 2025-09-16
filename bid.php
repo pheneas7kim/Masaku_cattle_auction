@@ -34,8 +34,7 @@ if (!$cattle) {
 
 $is_owner = ($user_id == $cattle['seller_id']);
 
-// Fetch highest bid
-// Fetch highest bid + user who placed it
+// Fetch highest bid + bidder
 $stmt = $conn->prepare("
     SELECT b.bid_amount, u.name AS bidder_name 
     FROM bids b
@@ -56,7 +55,6 @@ if ($highest) {
     $highest_bidder = "N/A (no bids yet)";
 }
 
-
 // Fetch previous bids
 $stmt = $conn->prepare("SELECT b.bid_amount, b.created_at, u.name 
                         FROM bids b 
@@ -73,19 +71,36 @@ $bids = $stmt->get_result();
 <head>
     <title>Place Bid</title>
     <link rel="stylesheet" href="css/bid.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; }
+        .container { width: 70%; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
+        h2 { text-align: center; color: #333; }
+        .price { color: green; font-size: 18px; font-weight: bold; }
+        .message { text-align: center; margin: 10px 0; display: none; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .bid-history { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 6px; background: #fafafa; }
+        .bid-item { margin-bottom: 8px; }
+        input[type="number"] { padding: 8px; width: 60%; margin-right: 10px; }
+        button { padding: 10px 15px; background: #007bff; color: #fff; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
 </head>
 <body>
+    <?php include 'navbar.php'; ?>
 <div class="container">
     <h2>Place a Bid for <?= htmlspecialchars($cattle['name']); ?></h2>
     <p><b>Breed:</b> <?= htmlspecialchars($cattle['breed']); ?></p>
     <p><b>Age:</b> <?= $cattle['age']; ?> years</p>
     <p><b>Weight:</b> <?= $cattle['weight']; ?> kg</p>
+    <p><b>Location:</b> <?= htmlspecialchars($cattle['location']); ?></p>
     <p class="price">Starting Price: Ksh <?= number_format($cattle['price'], 2); ?></p>
     <p><b>Current Highest Bid:</b> 
-    <?= is_numeric($highest_bid) 
-        ? "Ksh " . number_format($highest_bid, 2) . " by " . htmlspecialchars($highest_bidder) 
-        : "No bids yet"; ?>
-</p>
+        <?= is_numeric($highest_bid) 
+            ? "Ksh " . number_format($highest_bid, 2) . " by " . htmlspecialchars($highest_bidder) 
+            : "No bids yet"; ?>
+    </p>
 
     <!-- ✅ AJAX Status Message -->
     <p class="message" id="statusMessage"></p>
@@ -96,13 +111,17 @@ $bids = $stmt->get_result();
     <?php else: ?>
         <form id="bidForm">
             <input type="hidden" name="cattle_id" value="<?= $cattle['id']; ?>">
-            <input type="number" name="bid_amount" placeholder="Enter your bid" required min="<?= $highest_bid + 1; ?>">
+            <input type="number" 
+                   name="bid_amount" 
+                   placeholder="Enter your bid (min: <?= $highest_bid + 500; ?>)" 
+                   required 
+                   min="<?= $highest_bid + 500; ?>">
             <button type="submit">Submit Bid</button>
         </form>
     <?php endif; ?>
 
     <!-- Previous Bids -->
-    <div class="bid-history">
+    <div class="bid-history" id="bidHistory">
         <h3>Previous Bids</h3>
         <?php if ($bids->num_rows > 0): ?>
             <?php while ($bid = $bids->fetch_assoc()): ?>
@@ -118,10 +137,8 @@ $bids = $stmt->get_result();
     </div>
 
     <p style="text-align:center; margin-top:20px;">
-        <a href="auctions.php">⬅ Back to Auctions</a>
-        <br><br><br>
-        <a href="my_account.php">my account</a>
-        
+        <a href="auctions.php">⬅ Back to Auctions</a> | 
+        <a href="my_account.php">My Account</a>
     </p>
 </div>
 
@@ -132,6 +149,7 @@ document.getElementById("bidForm")?.addEventListener("submit", function(e) {
 
     const formData = new FormData(this);
     const statusMessage = document.getElementById("statusMessage");
+    const bidHistory = document.getElementById("bidHistory");
 
     fetch("place_bid.php", {
         method: "POST",
@@ -143,6 +161,9 @@ document.getElementById("bidForm")?.addEventListener("submit", function(e) {
         if (data.success) {
             statusMessage.className = "message success";
             statusMessage.textContent = "✅ Bid submitted successfully!";
+
+            // 🔄 Refresh the page after 1.5s so new bid shows
+            setTimeout(() => location.reload(), 1500);
         } else {
             statusMessage.className = "message error";
             statusMessage.textContent = "❌ " + data.error;

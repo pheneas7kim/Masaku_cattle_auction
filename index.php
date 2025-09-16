@@ -22,8 +22,9 @@ if (isset($_SESSION['user_id'])) {
     $stmt->close();
 }
 
-// Fetch only the latest 6 cattle
-$sql = "SELECT c.*, u.name AS seller_name 
+// ✅ Fetch only the latest 6 cattle with highest bid
+$sql = "SELECT c.*, u.name AS seller_name,
+        (SELECT MAX(b.bid_amount) FROM bids b WHERE b.cattle_id = c.id) AS highest_bid
         FROM cattle c 
         JOIN users u ON c.seller_id = u.id 
         ORDER BY c.start_time DESC 
@@ -46,6 +47,7 @@ $result = $conn->query($sql);
     .btn-primary:hover { background: #15803d; }
     .btn-secondary { background: #f97316; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; }
     .btn-secondary:hover { background: #ea580c; }
+    .slider img { width: 100%; height: 100vh; object-fit: cover; }
   </style>
 </head>
 <body class="bg-gray-50">
@@ -53,34 +55,40 @@ $result = $conn->query($sql);
   <!-- Navbar -->
   <?php include 'navbar.php'; ?>
 
-<!-- 🌟 HERO / BANNER SECTION -->
-<section class="relative h-screen pt-20 flex items-center justify-center text-center">
-  <!-- Background Image -->
-  <div class="absolute inset-0">
-    <img src="uploads/1756195892_bull1.webp" alt="Healthy bulls ready for auction in Kenya" class="w-full h-full object-cover">
-    <!-- Gradient Overlay (lighter) -->
+<!-- 🌟 HERO / BANNER SECTION WITH SLIDER -->
+<section class="relative h-screen pt-20 flex items-center justify-center text-center overflow-hidden">
+  <!-- Slider Container -->
+  <div class="absolute inset-0 slider">
+    <div class="slides w-full h-full relative">
+      <img src="/uploads/cattle5.jpg" class="absolute inset-0 opacity-0 transition-opacity duration-1000">
+      <img src="uploads/cattle6.jpg" class="absolute inset-0 opacity-100 transition-opacity duration-1000">
+      <img src="/uploads/cattle2.jpeg" class="absolute inset-0 opacity-0 transition-opacity duration-1000">
+      <img src="/uploads/cattle.jpeg" class="absolute inset-0 opacity-0 transition-opacity duration-1000">
+    /uploads/cattle4.jpeg
+    </div>
+    <!-- Gradient Overlay -->
     <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/10"></div>
   </div>
 
   <!-- Content -->
   <div class="relative z-10 px-6 sm:px-12 text-grey-100">
-   <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 animate-fadeIn text-yellow-300">
-  Welcome to Masaku Cattle Auction
-</h1>
+    <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 animate-fadeIn text-white">
+      MASAKU LIVESTOCK
+    </h1>
 
-    <p class="text-lg sm:text-xl md:text-2xl max-w-2xl mx-auto mb-6 animate-fadeIn delay-200 text-yellow-400">
-  Buy and sell cattle with trust, transparency, and ease.
-</p>
+    <p class="text-lg sm:text-xl md:text-2xl max-w-2xl mx-auto mb-6 animate-fadeIn delay-200 text-white">
+      Buy and sell cattle with trust, transparency, and ease.
+    </p>
 
     <!-- CTA Buttons -->
     <div class="flex flex-col sm:flex-row justify-center gap-4 mb-8 animate-fadeIn delay-300">
       <a href="auctions.php" 
-         class="px-6 py-3 bg-orange-500 hover:bg-orange-600 rounded-full shadow-lg transition transform hover:scale-105 text-white font-semibold">
+         class="px-6 py-3 bg-green-500 hover:bg-green-700 rounded-full shadow-lg transition transform hover:scale-105 text-white font-semibold">
         View Auctions
       </a>
       <a href="sell.php" 
          class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-full shadow-lg transition transform hover:scale-105 text-white font-semibold">
-        Sell Your Cattle
+        Sell Your Livestock
       </a>
     </div>
 
@@ -97,6 +105,23 @@ $result = $conn->query($sql);
   </div>
 </section>
 
+<!-- SLIDER SCRIPT -->
+<script>
+let currentSlide = 0;
+const slides = document.querySelectorAll('.slides img');
+
+function showSlide(index) {
+  slides.forEach((slide, i) => {
+    slide.style.opacity = (i === index) ? "1" : "0";
+  });
+}
+
+setInterval(() => {
+  currentSlide = (currentSlide + 1) % slides.length;
+  showSlide(currentSlide);
+}, 3000); // Change every 5 seconds
+</script>
+
 <!-- ✨ Animations -->
 <style>
 @keyframes fadeIn {
@@ -111,11 +136,9 @@ $result = $conn->query($sql);
 .animate-fadeIn.delay-500 { animation-delay: 0.5s; }
 </style>
 
-   
-
   <!-- FEATURED AUCTIONS -->
   <section class="py-16">
-    <h2 class="text-center text-3xl font-bold mb-12">Auction - Latest Cattle</h2>
+    <h2 class="text-center text-3xl font-bold mb-12">Latest Auctions</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 max-w-7xl mx-auto px-6">
       <?php if ($result->num_rows > 0): ?>
         <?php while ($row = $result->fetch_assoc()): 
@@ -127,10 +150,16 @@ $result = $conn->query($sql);
             <p><b>Breed:</b> <?= htmlspecialchars($row['breed']) ?></p>
             <p><b>Age:</b> <?= $row['age'] ?> years</p>
             <p><b>Weight:</b> <?= $row['weight'] ?> kg</p>
-            <p class="text-lg font-bold text-red-600">Ksh <?= number_format($row['price'], 2) ?></p>
+            <p><b>📍Location:</b> <?= htmlspecialchars($row['location']) ?></p>
+
+            <p class="text-lg font-bold text-black-600">cash: Ksh <?= number_format($row['price'], 2) ?></p>
+
+            <p class="text-md font-semibold text-black-600">
+              Highest Bid: <?= $row['highest_bid'] ? "Ksh " . number_format($row['highest_bid'], 2) : "No bids yet"; ?>
+            </p>
+
             <p>📞 <?= htmlspecialchars($row['phone']) ?></p>
             
-
             <p class="mt-2 status <?= $expired ? 'text-red-600' : 'text-green-600' ?>">
               <?= $expired ? "Closed" : "Active (closes " . date("d M Y H:i", strtotime($row['close_time'])) . ")" ?>
             </p>
@@ -145,13 +174,16 @@ $result = $conn->query($sql);
           </div>
         <?php endwhile; ?>
       <?php else: ?>
-        <p class="col-span-3 text-center text-red-500">No cattle available for auction.</p>
+        <p class="col-span-3 text-center text-red-500">No livestock available for auction.</p>
       <?php endif; ?>
     </div>
 
     <div class="text-center mt-10">
-      <a href="auctions.php" class="btn-secondary">View All Auctions</a>
-    </div>
+  <a href="auctions.php" class="text-blue-600 hover:text-blue-800 underline">
+    View All Auctions
+  </a>
+</div>
+
   </section>
 
   <!-- STATS SECTION -->
@@ -188,8 +220,8 @@ $result = $conn->query($sql);
     <div class="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
       <div>
         <h2 class="text-3xl font-bold mb-6">About Us</h2>
-        <p class="mb-4 text-gray-700">Welcome to Masaku Cattle Auction, your trusted online platform 
-          for buying and selling cattle. Our mission is to bring farmers, buyers, 
+        <p class="mb-4 text-gray-700">Welcome to livestock Auction, your trusted online platform 
+          for buying and selling your livestock. Our mission is to bring farmers, buyers, 
           and livestock traders together in a transparent and efficient marketplace.</p>
         <h3 class="text-2xl font-semibold mb-3">Our Mission</h3>
         <p class="mb-4 text-gray-700">To empower livestock farmers by giving them direct access to buyers 
@@ -199,7 +231,7 @@ $result = $conn->query($sql);
           <li>Transparent auction process</li>
           <li>Safe and secure transactions</li>
           <li>Easy registration for farmers & buyers</li>
-          <li>Free posting of cattle listings</li>
+          <li>Free posting of livestock listings</li>
         </ul>
       </div>
       <div>
@@ -209,21 +241,22 @@ $result = $conn->query($sql);
   </section>
 
   <!-- FOOTER -->
-  <footer class="bg-gray-900 text-white py-12">
+  <footer class="bg-grey-900 text-white py-12">
     <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-8">
       <div>
-        <h3 class="text-lg font-bold mb-3">Masaku Cattle Auction</h3>
-        <p>Trusted platform for buying and selling cattle in Kenya.</p>
+        <h3 class="text-lg font-bold mb-3">Livestock Auction</h3>
+        <p>Trusted platform for buying and selling livestock.</p>
       </div>
       <div>
-        <h3 class="text-lg font-bold mb-3">Quick Links</h3>
-        <ul>
-          <li><a href="auctions.php" class="hover:text-orange-400">Auctions</a></li>
-          <li><a href="sell.php" class="hover:text-orange-400">Sell Cattle</a></li>
-          <li><a href="#about" class="hover:text-orange-400">About Us</a></li>
-          <li><a href="#" class="hover:text-orange-400">Contact</a></li>
-        </ul>
-      </div>
+  <h3 class="text-lg font-bold mb-3 text-white">Quick Links</h3>
+  <ul class="space-y-2">
+    <li><a href="auctions.php" class="text-white hover:text-orange-400">Auctions</a></li>
+    <li><a href="upload.php" class="text-white hover:text-orange-400">Sell Livestock</a></li>
+    <li><a href="faq.php" class="text-white hover:text-orange-400">FAQ</a></li>
+    <li><a href="#" class="text-white hover:text-orange-400">Contact</a></li>
+  </ul>
+</div>
+
       <div>
         <h3 class="text-lg font-bold mb-3">Stay Connected</h3>
         <p class="mb-3">Contact: +254 758022918<br>Email: info@masakuauction.com</p>
@@ -235,7 +268,7 @@ $result = $conn->query($sql);
       </div>
     </div>
     <div class="text-center text-gray-400 mt-8">
-      &copy; 2025 Masaku Cattle Auction. All Rights Reserved.
+      &copy; 2025 Livestock Auction. All Rights Reserved.
     </div>
   </footer>
 

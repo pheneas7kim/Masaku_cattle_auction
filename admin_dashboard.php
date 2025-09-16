@@ -52,6 +52,26 @@ if (isset($_GET['delete_cattle'])) {
     $stmt->execute();
 }
 
+// ================= HANDLE COUNTRY ACTIONS =================
+
+// Add country
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['country_name'])) {
+    $country = trim($_POST['country_name']);
+    if (!empty($country)) {
+        $stmt = $conn->prepare("INSERT INTO countries (name) VALUES (?)");
+        $stmt->bind_param("s", $country);
+        $stmt->execute();
+    }
+}
+
+// Delete country
+if (isset($_GET['delete_country'])) {
+    $id = intval($_GET['delete_country']);
+    $stmt = $conn->prepare("DELETE FROM countries WHERE id=?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+}
+
 // ================= FETCH DATA =================
 
 // Fetch all users (except admin)
@@ -65,6 +85,9 @@ $cattleResult = $conn->query("
     JOIN users u ON c.seller_id = u.id
     ORDER BY c.start_time DESC
 ");
+
+// Fetch all countries
+$countriesResult = $conn->query("SELECT id, name FROM countries ORDER BY name ASC");
 ?>
 
 <!DOCTYPE html>
@@ -112,6 +135,12 @@ $cattleResult = $conn->query("
         .success:hover { background: #1e7e34; }
         .warning { background: #ffc107; color: #000; }
         .warning:hover { background: #e0a800; }
+        form { margin: 15px 0; }
+        input[type="text"] {
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -174,6 +203,29 @@ $cattleResult = $conn->query("
                 <td>
                     <a href="?delete_cattle=<?= $c['id'] ?>" class="btn danger"
                        onclick="return confirm('Delete this cattle listing?')">Delete</a>
+                </td>
+            </tr>
+        <?php endwhile; ?>
+    </table>
+
+    <!-- MANAGE COUNTRIES -->
+    <h2>Manage Countries</h2>
+    <form method="post">
+        <input type="text" name="country_name" placeholder="Enter country name" required>
+        <button type="submit" class="btn success">Add Country</button>
+    </form>
+
+    <table>
+        <tr>
+            <th>ID</th><th>Country</th><th>Action</th>
+        </tr>
+        <?php while ($row = $countriesResult->fetch_assoc()): ?>
+            <tr>
+                <td><?= $row['id'] ?></td>
+                <td><?= htmlspecialchars($row['name']) ?></td>
+                <td>
+                    <a href="?delete_country=<?= $row['id'] ?>" class="btn danger"
+                       onclick="return confirm('Delete this country?')">Delete</a>
                 </td>
             </tr>
         <?php endwhile; ?>

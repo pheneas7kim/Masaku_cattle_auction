@@ -10,7 +10,10 @@ include 'config.php';
 $breeds = $conn->query("SELECT DISTINCT breed FROM cattle ORDER BY breed ASC");
 
 /* ✅ Build query with filters */
-$sql = "SELECT c.* 
+$sql = "SELECT c.*, 
+        (SELECT MAX(b.bid_amount) 
+         FROM bids b 
+         WHERE b.cattle_id = c.id) AS highest_bid
         FROM cattle c 
         WHERE 1=1";
 
@@ -42,92 +45,50 @@ if (!empty($_GET['price_max']) && is_numeric($_GET['price_max'])) {
 $sql .= " ORDER BY c.start_time DESC";
 $result = $conn->query($sql);
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Auction - All Cattle</title>
+    <title>Auction - All livestock</title>
     <style>
         body { font-family: Arial; background: #f4f6f9; margin: 0; padding: 0; }
         h2 { text-align: center; color: darkgreen; margin-top: 20px; }
         .container { display: flex; margin: 20px; gap: 20px; }
-
-        /* Sidebar filters */
-        .sidebar {
-            width: 250px;
-            background: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            height: fit-content;
-        }
+        .sidebar { width: 250px; background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); height: fit-content; }
         .sidebar h3 { margin-bottom: 10px; color: darkgreen; }
         .sidebar label { display: block; margin: 5px 0 3px; font-size: 14px; }
-        .sidebar input, .sidebar select {
-            width: 100%; padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc; border-radius: 5px;
-        }
-        .filter-btn, .reset-btn {
-            border: none; padding: 10px;
-            width: 100%; border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 5px;
-        }
+        .sidebar input, .sidebar select { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .filter-btn, .reset-btn { border: none; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; margin-bottom: 5px; }
         .filter-btn { background: green; color: white; }
         .filter-btn:hover { background: darkgreen; }
         .reset-btn { background: #ccc; color: #333; }
         .reset-btn:hover { background: #999; }
-
-        /* Grid display */
-        .grid {
-            flex: 1;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-        .card {
-            background: #fff; padding: 15px;
-            border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            text-align: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
+        .grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); text-align: center; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
         .price { font-size: 18px; font-weight: bold; color: darkred; margin: 5px 0; }
+        .highest { font-size: 16px; font-weight: bold; color: blue; margin: 5px 0; }
         .status { font-weight: bold; }
         .active { color: green; }
         .closed { color: red; }
-        .buy-btn {
-            margin-top: 10px;
-            background: green; color: white;
-            border: none; padding: 8px 15px;
-            border-radius: 5px; cursor: pointer;
-        }
+        .buy-btn { margin-top: 10px; background: green; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
         .buy-btn:hover { background: darkgreen; }
-        .buy-btn:disabled {
-            background: #ccc; color: #666;
-            cursor: not-allowed;
-        }
+        .buy-btn:disabled { background: #ccc; color: #666; cursor: not-allowed; }
+        
     </style>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <?php include 'navbar.php'; ?>
-    <h2>Auction - All Uploaded Cattle</h2>
+    <h2>Auction - All Uploaded livestock</h2>
 
     <div class="container">
         <!-- Sidebar Filters -->
         <div class="sidebar">
-            <h3>🔍 Filter & Search Cattle</h3>
+            <h3>🔍 Filter & Search livestock</h3>
             <form method="GET">
-                <!-- ✅ Search box -->
                 <input type="text" name="search" placeholder="Search by name, breed, or weight..." 
                        value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
-
                 <label>Breed</label>
                 <select name="breed">
                     <option value="">Any</option>
@@ -138,15 +99,12 @@ $result = $conn->query($sql);
                         </option>
                     <?php endwhile; ?>
                 </select>
-
                 <label>Age Range</label>
                 <input type="number" name="age_min" placeholder="Min" value="<?= htmlspecialchars($_GET['age_min'] ?? '') ?>">
                 <input type="number" name="age_max" placeholder="Max" value="<?= htmlspecialchars($_GET['age_max'] ?? '') ?>">
-
                 <label>Price Range (Ksh)</label>
                 <input type="number" name="price_min" placeholder="Min" value="<?= htmlspecialchars($_GET['price_min'] ?? '') ?>">
                 <input type="number" name="price_max" placeholder="Max" value="<?= htmlspecialchars($_GET['price_max'] ?? '') ?>">
-
                 <button type="submit" class="filter-btn">Apply Filters</button>
                 <a href="auctions.php"><button type="button" class="reset-btn">Reset Filters</button></a>
             </form>
@@ -164,7 +122,14 @@ $result = $conn->query($sql);
                         <p><b>Breed:</b> <?= htmlspecialchars($row['breed']) ?></p>
                         <p><b>Age:</b> <?= $row['age'] ?> years</p>
                         <p><b>Weight:</b> <?= $row['weight'] ?> kg</p>
-                        <p class="price">Ksh <?= number_format($row['price'], 2) ?></p>
+                        <p><b>📍 Location:</b> <?= htmlspecialchars($row['location']) ?></p> <!-- ✅ Added Location -->
+                        <p class="price">Starting: Ksh <?= number_format($row['price'], 2) ?></p>
+
+                        <!-- ✅ Show Highest Bid -->
+                        <p class="highest">
+                            Highest Bid: 
+                            <?= $row['highest_bid'] ? "Ksh " . number_format($row['highest_bid'], 2) : "No bids yet"; ?>
+                        </p>
 
                         <p class="status <?= $expired ? 'closed' : 'active' ?>">
                             <?= $expired ? "Closed" : "Active (closes " . date("d M Y H:i", strtotime($row['close_time'])) . ")" ?>
@@ -180,7 +145,7 @@ $result = $conn->query($sql);
                     </div>
                 <?php endwhile; ?>
             <?php else: ?>
-                <p style="text-align:center; color:red;">No cattle found with selected filters.</p>
+                <p style="text-align:center; color:red;">No livestock found with selected filters.</p>
             <?php endif; ?>
         </div>
     </div>

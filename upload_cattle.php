@@ -15,7 +15,7 @@ $user_id   = $_SESSION['user_id'];
 $user_name = $_SESSION['user_name'];
 $message   = "";
 
-// Handle delete
+// ================== DELETE ==================
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
     $stmt = $conn->prepare("DELETE FROM cattle WHERE id = ? AND seller_id = ?");
@@ -23,7 +23,7 @@ if (isset($_GET['delete'])) {
     $message = $stmt->execute() ? "✅ Cattle deleted successfully." : "❌ Error deleting cattle.";
 }
 
-// Handle edit/update
+// ================== UPDATE ==================
 if (isset($_POST['update_id'])) {
     $id = intval($_POST['update_id']);
     $name = $_POST['name'];
@@ -31,14 +31,17 @@ if (isset($_POST['update_id'])) {
     $age = intval($_POST['age']);
     $weight = floatval($_POST['weight']);
     $price = floatval($_POST['price']);
+    $location = $_POST['location'];
     $close_time = $_POST['close_time'];
 
-    $stmt = $conn->prepare("UPDATE cattle SET name=?, breed=?, age=?, weight=?, price=?, close_time=? WHERE id=? AND seller_id=?");
-    $stmt->bind_param("ssiddsii", $name, $breed, $age, $weight, $price, $close_time, $id, $user_id);
+    $stmt = $conn->prepare("UPDATE cattle 
+        SET name=?, breed=?, age=?, weight=?, price=?, location=?, close_time=? 
+        WHERE id=? AND seller_id=?");
+    $stmt->bind_param("ssiddssii", $name, $breed, $age, $weight, $price, $location, $close_time, $id, $user_id);
     $message = $stmt->execute() ? "✅ Cattle updated successfully." : "❌ Error updating cattle.";
 }
 
-// Handle upload
+// ================== UPLOAD ==================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_POST['update_id'])) {
     $name = $_POST['name'];
     $breed = $_POST['breed'];
@@ -46,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_POST['update_id'])) {
     $weight = floatval($_POST['weight']);
     $price = floatval($_POST['price']);
     $phone = $_POST['phone'];
+    $location = $_POST['location'];
     $close_time = $_POST['close_time'];
     $imageName = "";
 
@@ -60,9 +64,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_POST['update_id'])) {
     }
 
     $stmt = $conn->prepare("INSERT INTO cattle 
-        (seller_id, name, breed, age, weight, price, phone, image, start_time, close_time) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
-    $stmt->bind_param("issiddsss", $user_id, $name, $breed, $age, $weight, $price, $phone, $imageName, $close_time);
+        (seller_id, name, breed, age, weight, price, phone, location, image, start_time, close_time) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
+    $stmt->bind_param("issiddssss", $user_id, $name, $breed, $age, $weight, $price, $phone, $location, $imageName, $close_time);
     $message = $stmt->execute() ? "✅ Cattle uploaded successfully. Auction closes at $close_time." : "❌ Error: " . $stmt->error;
 }
 
@@ -77,11 +81,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
 <title>User Dashboard</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-    body {
-        font-family: "Segoe UI", Arial, sans-serif;
-        background: #f4f6f9;
-        margin: 0;
-    }
+    body { font-family: "Segoe UI", Arial, sans-serif; background: #f4f6f9; margin: 0; }
     h2, p { text-align: center; }
     p.success {
         background: #eaffea; border: 1px solid #c2f0c2;
@@ -143,7 +143,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
 <div class="container">
     <!-- Upload Form -->
     <div class="form-container">
-        <h3>Upload New Cattle</h3>
+        <h3>Upload New livestock</h3>
         <form method="POST" enctype="multipart/form-data">
             <input type="text" name="name" placeholder="Full name" required>
             <input type="text" name="breed" placeholder="Breed" required>
@@ -151,15 +151,16 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
             <input type="number" step="0.1" name="weight" placeholder="Weight (kg)" required>
             <input type="text" name="price" placeholder="Price" required>
             <input type="text" name="phone" placeholder="0700000000" required>
+            <input type="text" name="location" placeholder="Location" required>
             <input type="datetime-local" name="close_time" required>
             <input type="file" name="image" required>
-            <button  type="submit">Upload</button>
+            <button type="submit">Upload</button>
         </form>
     </div>
 
     <!-- My Cattle Table -->
     <div class="table-container">
-        <h3>My Cattle</h3>
+        <h3>My livestock</h3>
         <div class="table-wrapper">
             <table>
                 <tr>
@@ -169,6 +170,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
                     <th>Age</th>
                     <th>Weight</th>
                     <th>Price</th>
+                    <th>Location</th>
                     <th>Start Time</th>
                     <th>Close Time</th>
                     <th>Status</th>
@@ -178,11 +180,12 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
                     <?php $status = (strtotime($row['close_time']) <= time()) ? "closed" : "active"; ?>
                     <tr>
                         <td><img src="uploads/<?php echo $row['image']; ?>" alt="Cattle"></td>
-                        <td><?php echo $row['name']; ?></td>
-                        <td><?php echo $row['breed']; ?></td>
+                        <td><?php echo htmlspecialchars($row['name']); ?></td>
+                        <td><?php echo htmlspecialchars($row['breed']); ?></td>
                         <td><?php echo $row['age']; ?> yrs</td>
                         <td><?php echo $row['weight']; ?> kg</td>
                         <td>Ksh <?php echo number_format($row['price'], 2); ?></td>
+                        <td><?php echo htmlspecialchars($row['location']); ?></td>
                         <td><?php echo $row['start_time']; ?></td>
                         <td><?php echo $row['close_time']; ?></td>
                         <td class="<?php echo $status === 'closed' ? 'expired' : 'success'; ?>">
@@ -198,6 +201,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
                                         '<?php echo $row['age']; ?>',
                                         '<?php echo $row['weight']; ?>',
                                         '<?php echo $row['price']; ?>',
+                                        '<?php echo htmlspecialchars($row['location']); ?>',
                                         '<?php echo date('Y-m-d\TH:i', strtotime($row['close_time'])); ?>'
                                     )">Edit</button>
                             <?php endif; ?>
@@ -216,7 +220,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
 <div class="modal" id="editModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Edit Cattle</h3>
+            <h3>Edit  livestock</h3>
             <button class="close-btn" onclick="closeEditModal()">X</button>
         </div>
         <form method="POST">
@@ -226,6 +230,7 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
             <input type="number" name="age" id="edit_age" required>
             <input type="number" step="0.1" name="weight" id="edit_weight" required>
             <input type="text" name="price" id="edit_price" required>
+            <input type="text" name="location" id="edit_location" required>
             <input type="datetime-local" name="close_time" id="edit_close_time" required>
             <button type="submit">Save Changes</button>
         </form>
@@ -233,13 +238,14 @@ $result = $conn->query("SELECT * FROM cattle WHERE seller_id = $user_id ORDER BY
 </div>
 
 <script>
-function openEditModal(id, name, breed, age, weight, price, close_time) {
+function openEditModal(id, name, breed, age, weight, price, location, close_time) {
     document.getElementById("edit_id").value = id;
     document.getElementById("edit_name").value = name;
     document.getElementById("edit_breed").value = breed;
     document.getElementById("edit_age").value = age;
     document.getElementById("edit_weight").value = weight;
     document.getElementById("edit_price").value = price;
+    document.getElementById("edit_location").value = location;
     document.getElementById("edit_close_time").value = close_time;
     document.getElementById("editModal").style.display = "flex";
 }
