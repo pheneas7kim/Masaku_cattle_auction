@@ -259,7 +259,7 @@ setInterval(() => {
 
       <div>
         <h3 class="text-lg font-bold mb-3">Stay Connected</h3>
-        <p class="mb-3">Contact: +254 758022918<br>Email: info@masakuauction.com</p>
+        <p class="mb-3">Contact: +254000000<br>Email: info@masakuauction.com</p>
         <div class="flex space-x-4">
           <a href="#" class="hover:text-orange-400"><i class="fab fa-facebook"></i></a>
           <a href="#" class="hover:text-orange-400"><i class="fab fa-twitter"></i></a>
